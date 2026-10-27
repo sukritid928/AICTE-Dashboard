@@ -1,0 +1,1468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AICTE Grievance & Complaint Tracking Portal</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            aicteNavy: {
+              950: '#070d19',
+              900: '#0f172a',
+              800: '#1e293b',
+              700: '#334155'
+            },
+            aicteGold: {
+              400: '#fbbf24',
+              500: '#f59e0b',
+              600: '#d97706'
+            },
+            aicteSaffron: {
+              500: '#f97316',
+              600: '#ea580c'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- React & ReactDOM CDNs -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  
+  <!-- Babel CDN for inline JSX compilation -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Recharts CDN (Recharts + Prop-Types dependencies) -->
+  <script src="https://unpkg.com/prop-types/prop-types.min.js"></script>
+  <script src="https://unpkg.com/recharts@2.8.0/umd/Recharts.js"></script>
+
+  <style>
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #f59e0b; }
+    body { background-color: #070d19; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
+  </style>
+</head>
+<body>
+
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useMemo, useEffect } = React;
+    const { 
+      ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, PieChart, Pie, Legend 
+    } = window.Recharts || {};
+
+    // --- MOCK DATA: INSTITUTIONS ---
+    const INITIAL_INSTITUTIONS = [
+      {
+        id: "1-109982341",
+        name: "College of Engineering Guindy (CEG)",
+        shortName: "CEG Chennai",
+        region: "Southern (Tamil Nadu)",
+        address: "12, Sardar Patel Rd, Anna University, Guindy, Chennai, Tamil Nadu 600025",
+        type: "Government Aided / State University",
+        director: "Dr. R. Velraj",
+        contactEmail: "director@ceg.annauniv.edu",
+        contactPhone: "+91 44 2235 7004",
+        approvalStatus: "Approved (2026-2027)",
+        nbaAccredited: true,
+        totalIntake: 2400,
+        riskScore: "Low",
+        complaintStats: { total: 4, open: 1, resolved: 3 }
+      },
+      {
+        id: "1-332918231",
+        name: "Delhi Technological University (DTU)",
+        shortName: "DTU Delhi",
+        region: "Northern (Delhi)",
+        address: "Shahbad Daulatpur, Main Bawana Road, Delhi 110042",
+        type: "State Technical University",
+        director: "Prof. Prateek Sharma",
+        contactEmail: "vice-chancellor@dtu.ac.in",
+        contactPhone: "+91 11 2787 1018",
+        approvalStatus: "Approved (2026-2027)",
+        nbaAccredited: true,
+        totalIntake: 3100,
+        riskScore: "Low",
+        complaintStats: { total: 3, open: 1, resolved: 2 }
+      },
+      {
+        id: "1-445892019",
+        name: "PSG College of Technology",
+        shortName: "PSG Tech",
+        region: "Southern (Tamil Nadu)",
+        address: "Avinashi Rd, Peelamedu, Coimbatore, Tamil Nadu 641004",
+        type: "Private Autonomous",
+        director: "Dr. K. Prakasan",
+        contactEmail: "principal@psgtech.ac.in",
+        contactPhone: "+91 422 2572177",
+        approvalStatus: "Approved (2026-2027)",
+        nbaAccredited: true,
+        totalIntake: 1800,
+        riskScore: "Low",
+        complaintStats: { total: 2, open: 1, resolved: 1 }
+      },
+      {
+        id: "1-558291033",
+        name: "Veermata Jijabai Technological Institute (VJTI)",
+        shortName: "VJTI Mumbai",
+        region: "Western (Maharashtra)",
+        address: "H. R. Mahajani Marg, Matunga, Mumbai, Maharashtra 400019",
+        type: "Government Aided Autonomous",
+        director: "Dr. Sachin Kore",
+        contactEmail: "director@vjti.ac.in",
+        contactPhone: "+91 22 2419 8101",
+        approvalStatus: "Approved (2026-2027)",
+        nbaAccredited: true,
+        totalIntake: 1200,
+        riskScore: "Medium",
+        complaintStats: { total: 5, open: 2, resolved: 3 }
+      },
+      {
+        id: "1-987210442",
+        name: "Apex Institute of Science & Technology",
+        shortName: "AIST Bhopal",
+        region: "Central (Madhya Pradesh)",
+        address: "NH-12, Hoshangabad Road, Bhopal, MP 462026",
+        type: "Private Unaided",
+        director: "Dr. R. K. Malhotra",
+        contactEmail: "admin@apextech.edu.in",
+        contactPhone: "+91 755 4910293",
+        approvalStatus: "Under Review / Conditional",
+        nbaAccredited: false,
+        totalIntake: 840,
+        riskScore: "High",
+        complaintStats: { total: 6, open: 4, resolved: 2 }
+      }
+    ];
+
+    // --- MOCK DATA: COMPLAINTS ---
+    const INITIAL_COMPLAINTS = [
+      {
+        id: "AICTE-2026-8941",
+        instId: "1-987210442",
+        instName: "Apex Institute of Science & Technology",
+        category: "Capitation Fee & Excess Fee Demand",
+        complainantType: "Student / Parent",
+        complainantName: "Rajesh Kumar (Anonymous)",
+        complainantEmail: "r.kumar***@gmail.com",
+        submissionDate: "2026-10-18",
+        dueDate: "2026-11-02",
+        priority: "High",
+        status: "Under Investigation",
+        bureau: "Grievance Redressal Cell",
+        assignedOfficer: "Shri S. K. Sharma (Deputy Director)",
+        officerEmail: "sksharma@aicte-india.org",
+        description: "Management demanding additional INR 85,000 as mandatory building fund fee during final term hall ticket issuance, violating AICTE fee guidelines. Retaining original certificates until paid.",
+        evidenceFiles: ["FeeReceipt_Demand.pdf", "NoticeBoard_Photo.jpg"],
+        nextAction: "Issue Show Cause Notice to College Management",
+        slaSecondsLeft: 184200, // ~2 days left
+        isEscalated: false,
+        transferHistory: [
+          { date: "2026-10-18", from: "Public Grievance Portal", to: "Grievance Redressal Cell", officer: "System Auto-Assign", remarks: "Initial intake" },
+          { date: "2026-10-19", from: "Grievance Redressal Cell", to: "Shri S. K. Sharma", officer: "Member Secy Office", remarks: "Assigned for high urgency review" }
+        ],
+        timeline: [
+          { date: "2026-10-18 10:15 AM", title: "Complaint Registered", author: "Complainant", note: "Submitted via AICTE Web Portal with scanned fee receipts." },
+          { date: "2026-10-19 02:30 PM", title: "Officer Assigned", author: "Shri S. K. Sharma", note: "Reviewed preliminary documents. Found prima facie violation of Fee Regulatory norms." }
+        ]
+      },
+      {
+        id: "AICTE-2026-8948",
+        instId: "1-987210442",
+        instName: "Apex Institute of Science & Technology",
+        category: "Capitation Fee & Excess Fee Demand",
+        complainantType: "Student Community",
+        complainantName: "Ananya Sharma",
+        complainantEmail: "ananya.s***@outlook.com",
+        submissionDate: "2026-10-20",
+        dueDate: "2026-11-04",
+        priority: "High",
+        status: "New",
+        bureau: "Finance Bureau",
+        assignedOfficer: "Dr. Prabhat Verma (Assistant Director)",
+        officerEmail: "pverma@aicte-india.org",
+        description: "College forcing 3rd year B.Tech students to pay 85k INR extra for development fees prior to odd semester examination hall ticket release. Threatening to withhold admit cards.",
+        evidenceFiles: ["Email_Threat_HallTicket.pdf"],
+        nextAction: "Initial Verification and Overlap Review",
+        slaSecondsLeft: 350000,
+        isEscalated: false,
+        transferHistory: [
+          { date: "2026-10-20", from: "System Intake", to: "Finance Bureau", officer: "Auto Intake", remarks: "Category tagging: Fee" }
+        ],
+        timeline: [
+          { date: "2026-10-20 04:20 PM", title: "Complaint Filed", author: "Complainant", note: "Received via public portal." }
+        ]
+      },
+      {
+        id: "AICTE-2026-8712",
+        instId: "1-558291033",
+        instName: "Veermata Jijabai Technological Institute (VJTI)",
+        category: "Unapproved Intake / Faculty Shortage",
+        complainantType: "Faculty Member",
+        complainantName: "Dr. A. P. Deshmukh",
+        complainantEmail: "ap.desh***@vjti.ac.in",
+        submissionDate: "2026-10-10",
+        dueDate: "2026-10-25",
+        priority: "Medium",
+        status: "Pending Institution Response",
+        bureau: "Approval Bureau",
+        assignedOfficer: "Mrs. Sunita Rani (Director Approval)",
+        officerEmail: "sunitarani@aicte-india.org",
+        description: "Department of Computer Engineering operating with 35% ad-hoc adjunct faculty against approved cadre ratio of 1:15. Core lab sessions handled by non-qualified staff.",
+        evidenceFiles: ["Faculty_Roster_2026.xlsx"],
+        nextAction: "Await Response from Principal VJTI",
+        slaSecondsLeft: -172800, // Overdue by 2 days
+        isEscalated: true,
+        transferHistory: [
+          { date: "2026-10-10", from: "WRO Mumbai", to: "Approval Bureau HQ", officer: "RO Mumbai", remarks: "Escalated for central scrutiny" }
+        ],
+        timeline: [
+          { date: "2026-10-10 11:00 AM", title: "Intake", author: "WRO Mumbai", note: "Forwarded to HQ." },
+          { date: "2026-10-12 03:00 PM", title: "Notice Issued", author: "Mrs. Sunita Rani", note: "Formal explanation requested. Target deadline missed." }
+        ]
+      },
+      {
+        id: "AICTE-2026-8104",
+        instId: "1-109982341",
+        instName: "College of Engineering Guindy (CEG)",
+        category: "Infrastructure Deficiency / Hostel Safety",
+        complainantType: "Student Union",
+        complainantName: "V. Karthik",
+        complainantEmail: "karthik.v***@annauniv.edu",
+        submissionDate: "2026-10-01",
+        dueDate: "2026-10-16",
+        priority: "Low",
+        status: "Resolved",
+        bureau: "Academic Bureau",
+        assignedOfficer: "Shri R. Ramanathan (RO Southern)",
+        officerEmail: "sro@aicte-india.org",
+        description: "Inadequate drinking water RO plants in Hostel Block C and delayed maintenance of fire safety equipment in Mechanical Dept labs.",
+        evidenceFiles: ["Hostel_Photos.zip"],
+        nextAction: "Case Closed - Compliance Verified",
+        slaSecondsLeft: 0,
+        isEscalated: false,
+        transferHistory: [],
+        timeline: [
+          { date: "2026-10-01", title: "Complaint Raised", author: "Complainant", note: "Water filter issue." },
+          { date: "2026-10-15", title: "Compliance Report Submitted", author: "CEG Management", note: "RO units installed and verified. Case closed." }
+        ]
+      },
+      {
+        id: "AICTE-2026-9011",
+        instId: "1-332918231",
+        instName: "Delhi Technological University (DTU)",
+        category: "Non-refund of Security Caution Deposit",
+        complainantType: "Alumnus",
+        complainantName: "Siddharth Jain",
+        complainantEmail: "siddharth.j***@gmail.com",
+        submissionDate: "2026-10-24",
+        dueDate: "2026-11-08",
+        priority: "Low",
+        status: "Assigned",
+        bureau: "Grievance Redressal Cell",
+        assignedOfficer: "Shri S. K. Sharma (Deputy Director)",
+        officerEmail: "sksharma@aicte-india.org",
+        description: "Delay of over 9 months in refunding caution deposit of INR 10,000 post graduation for 2025 passout batch.",
+        evidenceFiles: ["NoDues_Certificate.pdf"],
+        nextAction: "Forward query to DTU Accounts Section",
+        slaSecondsLeft: 720000,
+        isEscalated: false,
+        transferHistory: [],
+        timeline: [
+          { date: "2026-10-24 09:30 AM", title: "Registered", author: "Complainant", note: "Refund delay complaint." }
+        ]
+      },
+      {
+        id: "AICTE-2026-7640",
+        instId: "1-445892019",
+        instName: "PSG College of Technology",
+        category: "Ragging / Harassment Non-Compliance",
+        complainantType: "Student",
+        complainantName: "Confidential Student",
+        complainantEmail: "safe.student***@proton.me",
+        submissionDate: "2026-10-05",
+        dueDate: "2026-10-12",
+        priority: "High",
+        status: "Hearing Scheduled",
+        bureau: "Vigilance Cell",
+        assignedOfficer: "Col. U. S. Mehta (Head Vigilance)",
+        officerEmail: "usmehta@aicte-india.org",
+        description: "Alleged non-reporting of senior hostel incident by Anti-Ragging Committee of the institute. Requesting independent inquiry committee review.",
+        evidenceFiles: ["AntiRagging_Complaint_Copy.pdf"],
+        nextAction: "Conduct Virtual Hearing with Institute Anti-Ragging Squad",
+        slaSecondsLeft: 43200, // ~12 hrs left
+        isEscalated: true,
+        transferHistory: [
+          { date: "2026-10-05", from: "National Anti-Ragging Helpline", to: "AICTE Vigilance", officer: "UGC Rep", remarks: "Urgent Escalation" }
+        ],
+        timeline: [
+          { date: "2026-10-05 08:00 PM", title: "Helpline Escalation", author: "Anti-Ragging Squad", note: "Case flagged urgent." },
+          { date: "2026-10-12 02:00 PM", title: "Interim Hearing Set", author: "Col. U. S. Mehta", note: "Scheduled for Oct 28, 2026." }
+        ]
+      }
+    ];
+
+    // --- MOCK DATA: AI OVERLAP ALERT PAIRS ---
+    const INITIAL_AI_OVERLAPS = [
+      {
+        id: "OVERLAP-901",
+        primaryCaseId: "AICTE-2026-8941",
+        matchedCaseId: "AICTE-2026-8948",
+        similarityScore: 94,
+        status: "Pending Officer Action",
+        detectedDate: "2026-10-20",
+        reasons: [
+          "Exact match in Target Institution ID: 1-987210442 (Apex Institute Bhopal)",
+          "High text semantics similarity (92%) regarding 'INR 85,000 extra fee' and 'Hall ticket withholding'",
+          "Temporal proximity: Filed within 48 hours of each other",
+          "Overlapping grievance category: Fee Exploitation"
+        ],
+        recommendation: "Merge Case #8948 into Lead Case #8941 to form a Class Action Investigation."
+      },
+      {
+        id: "OVERLAP-905",
+        primaryCaseId: "AICTE-2026-8712",
+        matchedCaseId: "AICTE-2026-8104",
+        similarityScore: 42,
+        status: "Under Review",
+        detectedDate: "2026-10-15",
+        reasons: [
+          "Different institutions but similar boilerplate phrasing regarding Lab equipment and faculty oversight",
+          "Low correlation in structural evidence"
+        ],
+        recommendation: "Dismiss overlap alert - standard template text used by different submitters."
+      }
+    ];
+
+    function App() {
+      // Navigation state
+      const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'complaints' | 'directory' | 'ai-radar' | 'escalations'
+
+      // Main Data States
+      const [complaints, setComplaints] = useState(INITIAL_COMPLAINTS);
+      const [institutions] = useState(INITIAL_INSTITUTIONS);
+      const [aiOverlaps, setAiOverlaps] = useState(INITIAL_AI_OVERLAPS);
+
+      // Search & Filters
+      const [searchQuery, setSearchQuery] = useState('');
+      const [selectedBureauFilter, setSelectedBureauFilter] = useState('All');
+      const [selectedStatusFilter, setSelectedStatusFilter] = useState('All');
+
+      // Modals & Selection
+      const [selectedInstitution, setSelectedInstitution] = useState(null);
+      const [selectedComplaint, setSelectedComplaint] = useState(null);
+      const [selectedOverlapPair, setSelectedOverlapPair] = useState(null);
+
+      // Action Modal State
+      const [actionModalOpen, setActionModalOpen] = useState(false);
+      const [actionType, setActionType] = useState('status'); // 'status' | 'reassign' | 'hearing' | 'clarify'
+      const [actionFormData, setActionFormData] = useState({
+        status: '', bureau: '', officer: '', note: '', hearingDate: ''
+      });
+
+      // Notification Toast
+      const [toastMsg, setToastMsg] = useState(null);
+      const triggerToast = (msg) => {
+        setToastMsg(msg);
+        setTimeout(() => setToastMsg(null), 3500);
+      };
+
+      // Realtime SLA Countdown Ticker
+      useEffect(() => {
+        const timer = setInterval(() => {
+          setComplaints(prev => prev.map(c => {
+            if (c.status === 'Resolved') return c;
+            return { ...c, slaSecondsLeft: c.slaSecondsLeft - 1 };
+          }));
+        }, 1000);
+        return () => clearInterval(timer);
+      }, []);
+
+      // Calculate SLA display string
+      const formatSLA = (seconds) => {
+        if (seconds < 0) {
+          const overDays = Math.floor(Math.abs(seconds) / 86400);
+          return { text: `OVERDUE (${overDays}d)`, isBreached: true };
+        }
+        const hrs = Math.floor(seconds / 3600);
+        const mins = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+        return { text: `${hrs}h ${mins}m ${secs}s`, isBreached: false };
+      };
+
+      // Computed Metrics
+      const stats = useMemo(() => {
+        const total = complaints.length;
+        const pending = complaints.filter(c => c.status === 'New' || c.status === 'Assigned').length;
+        const ongoing = complaints.filter(c => c.status === 'Under Investigation' || c.status === 'Pending Institution Response' || c.status === 'Hearing Scheduled').length;
+        const resolved = complaints.filter(c => c.status === 'Resolved').length;
+        const escalated = complaints.filter(c => c.isEscalated).length;
+        const slaBreached = complaints.filter(c => c.slaSecondsLeft < 0 && c.status !== 'Resolved').length;
+        const slaMetPercent = Math.round(((total - slaBreached) / (total || 1)) * 100);
+
+        return { total, pending, ongoing, resolved, escalated, slaBreached, slaMetPercent };
+      }, [complaints]);
+
+      // Charts Data Prep
+      const bureauChartData = useMemo(() => {
+        const counts = {};
+        complaints.forEach(c => {
+          counts[c.bureau] = (counts[c.bureau] || 0) + 1;
+        });
+        return Object.keys(counts).map(k => ({ name: k, count: counts[k] }));
+      }, [complaints]);
+
+      const statusChartData = useMemo(() => {
+        const counts = {};
+        complaints.forEach(c => {
+          counts[c.status] = (counts[c.status] || 0) + 1;
+        });
+        return Object.keys(counts).map(k => ({ name: k, value: counts[k] }));
+      }, [complaints]);
+
+      const STATUS_COLORS = ['#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899', '#10b981', '#64748b'];
+
+      // Filtered Complaints List
+      const filteredComplaints = useMemo(() => {
+        return complaints.filter(c => {
+          const matchesSearch = 
+            c.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            c.instName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            c.instId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            c.category.toLowerCase().includes(searchQuery.toLowerCase());
+
+          const matchesBureau = selectedBureauFilter === 'All' || c.bureau === selectedBureauFilter;
+          const matchesStatus = selectedStatusFilter === 'All' || c.status === selectedStatusFilter;
+
+          return matchesSearch && matchesBureau && matchesStatus;
+        });
+      }, [complaints, searchQuery, selectedBureauFilter, selectedStatusFilter]);
+
+      // Actions Handler
+      const handleOpenActionModal = (complaint, type) => {
+        setSelectedComplaint(complaint);
+        setActionType(type);
+        setActionFormData({
+          status: complaint.status,
+          bureau: complaint.bureau,
+          officer: complaint.assignedOfficer,
+          note: '',
+          hearingDate: ''
+        });
+        setActionModalOpen(true);
+      };
+
+      const handleSaveAction = (e) => {
+        e.preventDefault();
+        if (!selectedComplaint) return;
+
+        const todayStr = new Date().toISOString().split('T')[0];
+
+        const updated = complaints.map(c => {
+          if (c.id === selectedComplaint.id) {
+            let updatedItem = { ...c };
+            const newTimeline = [...(c.timeline || [])];
+            const newHistory = [...(c.transferHistory || [])];
+
+            if (actionType === 'status') {
+              updatedItem.status = actionFormData.status;
+              newTimeline.push({
+                date: `${todayStr} (Just Now)`,
+                title: `Status Updated to ${actionFormData.status}`,
+                author: "Authorized Official",
+                note: actionFormData.note || `Status modified to ${actionFormData.status}`
+              });
+            } else if (actionType === 'reassign') {
+              newHistory.push({
+                date: todayStr,
+                from: c.bureau,
+                to: actionFormData.bureau,
+                officer: actionFormData.officer,
+                remarks: actionFormData.note || "Bureau transfer processed."
+              });
+              updatedItem.bureau = actionFormData.bureau;
+              updatedItem.assignedOfficer = actionFormData.officer;
+              newTimeline.push({
+                date: `${todayStr} (Just Now)`,
+                title: `Reassigned to ${actionFormData.bureau}`,
+                author: "Admin HQ",
+                note: `Assigned to ${actionFormData.officer}. Reason: ${actionFormData.note}`
+              });
+            } else if (actionType === 'hearing') {
+              updatedItem.status = 'Hearing Scheduled';
+              updatedItem.nextAction = `Virtual Hearing on ${actionFormData.hearingDate}`;
+              newTimeline.push({
+                date: `${todayStr} (Just Now)`,
+                title: `Official Hearing Scheduled`,
+                author: c.assignedOfficer,
+                note: `Hearing set for ${actionFormData.hearingDate}. Summons issued.`
+              });
+            } else if (actionType === 'clarify') {
+              updatedItem.status = 'Pending Institution Response';
+              newTimeline.push({
+                date: `${todayStr} (Just Now)`,
+                title: `Clarification Requested from College`,
+                author: c.assignedOfficer,
+                note: actionFormData.note || "Notice sent to Institute Director."
+              });
+            }
+
+            updatedItem.timeline = newTimeline;
+            updatedItem.transferHistory = newHistory;
+            return updatedItem;
+          }
+          return c;
+        });
+
+        setComplaints(updated);
+        setActionModalOpen(false);
+        const refreshCurrent = updated.find(c => c.id === selectedComplaint.id);
+        setSelectedComplaint(refreshCurrent);
+        triggerToast(`Action recorded successfully for Case ${selectedComplaint.id}`);
+      };
+
+      const handleMergeCases = (overlapItem) => {
+        const updated = complaints.map(c => {
+          if (c.id === overlapItem.matchedCaseId) {
+            return { 
+              ...c, 
+              status: 'Resolved', 
+              nextAction: `Merged into Lead Case ${overlapItem.primaryCaseId}`,
+              timeline: [
+                ...c.timeline,
+                {
+                  date: new Date().toISOString().split('T')[0],
+                  title: "Merged via AI Overlap Engine",
+                  author: "AICTE Oversight Officer",
+                  note: `Duplicate case merged under primary dossier ${overlapItem.primaryCaseId}.`
+                }
+              ]
+            };
+          }
+          return c;
+        });
+
+        setComplaints(updated);
+        setAiOverlaps(aiOverlaps.map(o => o.id === overlapItem.id ? { ...o, status: "Merged & Closed" } : o));
+        setSelectedOverlapPair(null);
+        triggerToast(`Case ${overlapItem.matchedCaseId} merged into ${overlapItem.primaryCaseId}`);
+      };
+
+      const handleDismissOverlap = (overlapId) => {
+        setAiOverlaps(aiOverlaps.filter(o => o.id !== overlapId));
+        setSelectedOverlapPair(null);
+        triggerToast("AI Overlap Alert dismissed.");
+      };
+
+      const handleExportCSV = () => {
+        const headers = ["Complaint ID", "AICTE Inst ID", "Institution Name", "Category", "Status", "Bureau", "Officer", "Priority", "Submission Date"];
+        const rows = filteredComplaints.map(c => [
+          c.id, c.instId, `"${c.instName}"`, `"${c.category}"`, c.status, c.bureau, `"${c.assignedOfficer}"`, c.priority, c.submissionDate
+        ]);
+        const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `AICTE_Grievance_Report_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        triggerToast("Grievance CSV Report downloaded.");
+      };
+
+      return (
+        <div className="min-h-screen bg-aicteNavy-950 text-slate-100 flex flex-col md:flex-row">
+          
+          {/* TOAST NOTIFICATION */}
+          {toastMsg && (
+            <div className="fixed top-4 right-4 z-50 bg-aicteGold-500 text-slate-950 px-4 py-3 rounded-xl shadow-2xl font-bold flex items-center gap-2 animate-bounce">
+              <i data-lucide="sparkles" className="w-5 h-5"></i>
+              <span>{toastMsg}</span>
+            </div>
+          )}
+
+          {/* --- SIDEBAR NAVIGATION --- */}
+          <aside className="w-full md:w-64 bg-slate-950 border-r border-slate-800 flex flex-col shrink-0">
+            {/* Header / Emblem */}
+            <div className="p-4 border-b border-slate-800 flex items-center gap-3 bg-slate-900/40">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-aicteSaffron-500 to-aicteGold-500 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-amber-500/20">
+                <i data-lucide="shield-alert" className="w-6 h-6"></i>
+              </div>
+              <div>
+                <h1 className="font-black text-sm tracking-wider text-amber-400">AICTE HQ PORTAL</h1>
+                <p className="text-[10px] text-slate-400 uppercase tracking-widest font-mono">Grievance Oversight</p>
+              </div>
+            </div>
+
+            {/* Nav Links */}
+            <nav className="p-3 space-y-1 flex-1">
+              <button
+                onClick={() => setActiveTab('dashboard')}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition ${
+                  activeTab === 'dashboard' 
+                    ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30' 
+                    : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'
+                }`}
+              >
+                <i data-lucide="bar-chart-3" className="w-4 h-4"></i>
+                <span>Executive Dashboard</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('complaints')}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-semibold transition ${
+                  activeTab === 'complaints' 
+                    ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30' 
+                    : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <i data-lucide="file-text" className="w-4 h-4"></i>
+                  <span>Case Tracking Ledger</span>
+                </div>
+                <span className="bg-slate-800 text-[10px] text-slate-300 px-2 py-0.5 rounded-full font-mono">
+                  {complaints.length}
+                </span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('directory')}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition ${
+                  activeTab === 'directory' 
+                    ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30' 
+                    : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'
+                }`}
+              >
+                <i data-lucide="building-2" className="w-4 h-4"></i>
+                <span>Institution Profile Directory</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('ai-radar')}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-semibold transition ${
+                  activeTab === 'ai-radar' 
+                    ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30' 
+                    : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <i data-lucide="sparkles" className="w-4 h-4 text-amber-400"></i>
+                  <span>AI Overlap Radar</span>
+                </div>
+                {aiOverlaps.filter(o => o.status !== 'Merged & Closed').length > 0 && (
+                  <span className="bg-red-500/20 text-red-400 border border-red-500/30 text-[10px] px-1.5 py-0.5 rounded-full font-mono">
+                    {aiOverlaps.filter(o => o.status !== 'Merged & Closed').length}
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => setActiveTab('escalations')}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-semibold transition ${
+                  activeTab === 'escalations' 
+                    ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30' 
+                    : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <i data-lucide="alert-triangle" className="w-4 h-4 text-red-400"></i>
+                  <span>SLA Breaches & Alerts</span>
+                </div>
+                {stats.slaBreached > 0 && (
+                  <span className="bg-red-500 text-slate-950 font-bold text-[10px] px-1.5 py-0.5 rounded-full font-mono">
+                    {stats.slaBreached}
+                  </span>
+                )}
+              </button>
+            </nav>
+
+            {/* Officer Profile Footer */}
+            <div className="p-3 border-t border-slate-800 bg-slate-950 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center font-bold text-xs">
+                HQ
+              </div>
+              <div className="text-[11px] overflow-hidden">
+                <p className="font-bold text-slate-200 truncate">Shri V. K. Unnikrishnan</p>
+                <p className="text-slate-400 truncate text-[10px]">Chief Vigilance Officer</p>
+              </div>
+            </div>
+          </aside>
+
+          {/* --- MAIN DISPLAY WORKSPACE --- */}
+          <main className="flex-1 flex flex-col min-h-screen overflow-y-auto">
+            
+            {/* TOP BAR */}
+            <header className="bg-slate-950/90 backdrop-blur border-b border-slate-800 sticky top-0 z-30 px-6 py-3.5 flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
+                  {activeTab === 'dashboard' && 'Executive Governance & Analytical Dashboard'}
+                  {activeTab === 'complaints' && 'Case Ownership & Complaint Tracking Ledger'}
+                  {activeTab === 'directory' && 'AICTE Institution Search & Verification Directory'}
+                  {activeTab === 'ai-radar' && 'AI Overlap & Cross-Reference Duplicate Detection'}
+                  {activeTab === 'escalations' && 'Critical SLA Breaches & Urgent Action Queue'}
+                </h2>
+                <p className="text-[11px] text-slate-400">All India Council for Technical Education • Ministry of Education, Govt. of India</p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={handleExportCSV}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-xs text-slate-200 font-medium border border-slate-700 transition"
+                >
+                  <i data-lucide="download" className="w-3.5 h-3.5 text-emerald-400"></i>
+                  <span>Export CSV</span>
+                </button>
+                <div className="h-4 w-[1px] bg-slate-800"></div>
+                <span className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-semibold bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  Live SLA Ticker Active
+                </span>
+              </div>
+            </header>
+
+            {/* TAB 1: EXECUTIVE DASHBOARD */}
+            {activeTab === 'dashboard' && (
+              <div className="p-6 space-y-6">
+                {/* KPI CARDS */}
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                  <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4">
+                    <div className="flex items-center justify-between text-slate-400 text-xs">
+                      <span>Total Registered</span>
+                      <i data-lucide="file-text" className="w-4 h-4 text-blue-400"></i>
+                    </div>
+                    <div className="mt-2">
+                      <span className="text-2xl font-black text-slate-100 font-mono">{stats.total}</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4">
+                    <div className="flex items-center justify-between text-slate-400 text-xs">
+                      <span>Pending Intake</span>
+                      <i data-lucide="clock" className="w-4 h-4 text-amber-400"></i>
+                    </div>
+                    <div className="mt-2">
+                      <span className="text-2xl font-black text-amber-400 font-mono">{stats.pending}</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4">
+                    <div className="flex items-center justify-between text-slate-400 text-xs">
+                      <span>Under Inquiry</span>
+                      <i data-lucide="activity" className="w-4 h-4 text-purple-400"></i>
+                    </div>
+                    <div className="mt-2">
+                      <span className="text-2xl font-black text-purple-400 font-mono">{stats.ongoing}</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4">
+                    <div className="flex items-center justify-between text-slate-400 text-xs">
+                      <span>Resolved</span>
+                      <i data-lucide="check-circle-2" className="w-4 h-4 text-emerald-400"></i>
+                    </div>
+                    <div className="mt-2">
+                      <span className="text-2xl font-black text-emerald-400 font-mono">{stats.resolved}</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4">
+                    <div className="flex items-center justify-between text-slate-400 text-xs">
+                      <span>Vigilance Escalated</span>
+                      <i data-lucide="alert-triangle" className="w-4 h-4 text-red-400"></i>
+                    </div>
+                    <div className="mt-2">
+                      <span className="text-2xl font-black text-red-400 font-mono">{stats.escalated}</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4">
+                    <div className="flex items-center justify-between text-slate-400 text-xs">
+                      <span>SLA Compliance</span>
+                      <i data-lucide="shield-check" className="w-4 h-4 text-cyan-400"></i>
+                    </div>
+                    <div className="mt-2">
+                      <span className="text-2xl font-black text-cyan-400 font-mono">{stats.slaMetPercent}%</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* CHARTS SECTION */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Bureau Distribution Bar Chart */}
+                  <div className="bg-slate-950 border border-slate-800 rounded-2xl p-5 flex flex-col">
+                    <h3 className="text-xs font-bold text-slate-200 uppercase font-mono tracking-wider mb-4">
+                      Complaints Assigned by AICTE Bureau
+                    </h3>
+                    <div className="h-64 w-full">
+                      {window.Recharts ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={bureauChartData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
+                            <XAxis dataKey="name" stroke="#64748b" fontSize={10} angle={-15} textAnchor="end" />
+                            <YAxis stroke="#64748b" fontSize={10} />
+                            <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', fontSize: '12px' }} />
+                            <Bar dataKey="count" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="text-xs text-slate-500 flex items-center justify-center h-full">Loading Charts...</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Status Breakdown Pie Chart */}
+                  <div className="bg-slate-950 border border-slate-800 rounded-2xl p-5 flex flex-col">
+                    <h3 className="text-xs font-bold text-slate-200 uppercase font-mono tracking-wider mb-4">
+                      Current Case Status Breakdown
+                    </h3>
+                    <div className="h-64 w-full">
+                      {window.Recharts ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie data={statusChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                              {statusChartData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={STATUS_COLORS[index % STATUS_COLORS.length]} />
+                              ))}
+                            </Pie>
+                            <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', fontSize: '12px' }} />
+                            <Legend wrapperStyle={{ fontSize: '11px', color: '#cbd5e1' }} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="text-xs text-slate-500 flex items-center justify-center h-full">Loading Charts...</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* URGENT DOSSIERS TABLE */}
+                <div className="bg-slate-950 border border-slate-800 rounded-2xl p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-200 uppercase font-mono tracking-wider">High Priority Grievances Pending Review</h3>
+                      <p className="text-xs text-slate-400">Cases requiring officer show-cause notices or hearing dispatch</p>
+                    </div>
+                    <button onClick={() => setActiveTab('complaints')} className="text-xs text-amber-400 hover:underline font-bold">
+                      View All Cases →
+                    </button>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs text-slate-300">
+                      <thead className="bg-slate-900 text-slate-400 font-mono uppercase">
+                        <tr>
+                          <th className="p-3">Ref ID</th>
+                          <th className="p-3">Institution Name</th>
+                          <th className="p-3">Category</th>
+                          <th className="p-3">Bureau</th>
+                          <th className="p-3">Priority</th>
+                          <th className="p-3">Status</th>
+                          <th className="p-3 text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/60">
+                        {complaints.slice(0, 4).map((item) => (
+                          <tr key={item.id} className="hover:bg-slate-900/60">
+                            <td className="p-3 font-mono font-bold text-amber-400">{item.id}</td>
+                            <td className="p-3 font-medium text-slate-200 max-w-[200px] truncate">{item.instName}</td>
+                            <td className="p-3 text-slate-300 max-w-[180px] truncate">{item.category}</td>
+                            <td className="p-3">{item.bureau}</td>
+                            <td className="p-3">
+                              <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${
+                                item.priority === 'High' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-slate-800 text-slate-300'
+                              }`}>
+                                {item.priority}
+                              </span>
+                            </td>
+                            <td className="p-3">
+                              <span className="px-2 py-0.5 rounded text-[10px] bg-slate-900 border border-slate-700 text-slate-300">
+                                {item.status}
+                              </span>
+                            </td>
+                            <td className="p-3 text-right">
+                              <button 
+                                onClick={() => { setSelectedComplaint(item); setActiveTab('complaints'); }}
+                                className="text-amber-400 hover:underline font-bold text-xs"
+                              >
+                                Track Dossier
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+              </div>
+            )}
+
+            {/* TAB 2: CASE TRACKING & OWNERSHIP */}
+            {activeTab === 'complaints' && (
+              <div className="p-6 space-y-6">
+                
+                {/* SEARCH & FILTERS */}
+                <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 flex flex-wrap gap-4 items-center justify-between">
+                  <div className="relative flex-1 min-w-[240px]">
+                    <i data-lucide="search" className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                    <input
+                      type="text"
+                      placeholder="Search Case Ref ID, Institution Name, or Category..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <select 
+                      value={selectedBureauFilter}
+                      onChange={(e) => setSelectedBureauFilter(e.target.value)}
+                      className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none"
+                    >
+                      <option value="All">All Bureaus</option>
+                      <option value="Grievance Redressal Cell">Grievance Redressal Cell</option>
+                      <option value="Approval Bureau">Approval Bureau</option>
+                      <option value="Vigilance Cell">Vigilance Cell</option>
+                      <option value="Finance Bureau">Finance Bureau</option>
+                      <option value="Academic Bureau">Academic Bureau</option>
+                    </select>
+
+                    <select 
+                      value={selectedStatusFilter}
+                      onChange={(e) => setSelectedStatusFilter(e.target.value)}
+                      className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none"
+                    >
+                      <option value="All">All Statuses</option>
+                      <option value="New">New</option>
+                      <option value="Assigned">Assigned</option>
+                      <option value="Under Investigation">Under Investigation</option>
+                      <option value="Pending Institution Response">Pending Inst. Response</option>
+                      <option value="Hearing Scheduled">Hearing Scheduled</option>
+                      <option value="Resolved">Resolved</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* MAIN SPLIT PANELS */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  
+                  {/* LEFT LIST PANEL */}
+                  <div className="lg:col-span-5 space-y-3">
+                    <span className="text-xs font-mono text-slate-400">Showing {filteredComplaints.length} Records</span>
+
+                    <div className="space-y-3 max-h-[700px] overflow-y-auto pr-1">
+                      {filteredComplaints.map(item => {
+                        const isSelected = selectedComplaint?.id === item.id;
+                        const slaObj = formatSLA(item.slaSecondsLeft);
+
+                        return (
+                          <div
+                            key={item.id}
+                            onClick={() => setSelectedComplaint(item)}
+                            className={`p-4 rounded-2xl border cursor-pointer transition ${
+                              isSelected 
+                                ? 'bg-slate-950 border-amber-500 shadow-lg shadow-amber-500/10' 
+                                : 'bg-slate-950/70 border-slate-800 hover:border-slate-700'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <span className="font-mono text-xs font-bold text-amber-400">{item.id}</span>
+                                <h4 className="text-xs font-bold text-slate-100 mt-0.5">{item.instName}</h4>
+                              </div>
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
+                                slaObj.isBreached ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-slate-900 text-amber-400 border border-slate-800'
+                              }`}>
+                                {slaObj.text}
+                              </span>
+                            </div>
+
+                            <p className="text-xs text-slate-400 mt-2 line-clamp-2">{item.description}</p>
+
+                            <div className="mt-3 pt-3 border-t border-slate-900 flex items-center justify-between text-[11px] text-slate-400">
+                              <span className="bg-slate-900 px-2 py-0.5 rounded text-slate-300 font-mono text-[10px]">
+                                {item.bureau}
+                              </span>
+                              <span className="font-semibold text-slate-200">{item.status}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* RIGHT DETAILED CASE DOSSIER */}
+                  <div className="lg:col-span-7">
+                    {selectedComplaint ? (
+                      <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 space-y-6 sticky top-20">
+                        
+                        <div className="border-b border-slate-800 pb-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-mono font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded border border-amber-500/20">
+                              DOSSIER #{selectedComplaint.id}
+                            </span>
+                            <span className="text-xs font-semibold px-2.5 py-1 rounded bg-slate-900 border border-slate-700 text-slate-200">
+                              {selectedComplaint.status}
+                            </span>
+                          </div>
+
+                          <h3 className="text-base font-bold text-slate-100">{selectedComplaint.category}</h3>
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            Target: <span className="text-amber-300 font-semibold">{selectedComplaint.instName}</span> (ID: {selectedComplaint.instId})
+                          </p>
+                        </div>
+
+                        {/* QUICK ACTION CONTROLS */}
+                        <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800 flex flex-wrap gap-2">
+                          <button
+                            onClick={() => handleOpenActionModal(selectedComplaint, 'status')}
+                            className="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 text-xs font-bold hover:bg-amber-400 transition"
+                          >
+                            Update Status
+                          </button>
+                          <button
+                            onClick={() => handleOpenActionModal(selectedComplaint, 'reassign')}
+                            className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 text-xs font-semibold hover:bg-slate-700 transition"
+                          >
+                            Reassign Bureau
+                          </button>
+                          <button
+                            onClick={() => handleOpenActionModal(selectedComplaint, 'hearing')}
+                            className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 text-xs font-semibold hover:bg-slate-700 transition"
+                          >
+                            Schedule Hearing
+                          </button>
+                          <button
+                            onClick={() => handleOpenActionModal(selectedComplaint, 'clarify')}
+                            className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 text-xs font-semibold hover:bg-slate-700 transition"
+                          >
+                            Request Clarification
+                          </button>
+                        </div>
+
+                        {/* CASE DATA GRID */}
+                        <div className="grid grid-cols-2 gap-4 text-xs bg-slate-900/50 p-4 rounded-xl border border-slate-800/80">
+                          <div>
+                            <span className="text-slate-500 font-mono block">Responsible Bureau</span>
+                            <span className="font-semibold text-slate-200 mt-0.5 block">{selectedComplaint.bureau}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500 font-mono block">Assigned Officer</span>
+                            <span className="font-semibold text-slate-200 mt-0.5 block">{selectedComplaint.assignedOfficer}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500 font-mono block">Complainant</span>
+                            <span className="font-semibold text-slate-200 mt-0.5 block">{selectedComplaint.complainantName}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500 font-mono block">SLA Expiry Countdown</span>
+                            <span className="font-mono font-bold text-amber-400 mt-0.5 block">
+                              {formatSLA(selectedComplaint.slaSecondsLeft).text}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* COMPLAINT NARRATIVE */}
+                        <div>
+                          <h4 className="text-xs font-bold text-slate-400 uppercase font-mono mb-2">Grievance Narrative</h4>
+                          <div className="bg-slate-900 p-3 rounded-xl border border-slate-800 text-xs text-slate-300 leading-relaxed">
+                            {selectedComplaint.description}
+                          </div>
+                        </div>
+
+                        {/* AUDIT TIMELINE LOG */}
+                        <div>
+                          <h4 className="text-xs font-bold text-slate-400 uppercase font-mono mb-3">Investigation Audit Trail</h4>
+                          <div className="space-y-3 relative before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-800">
+                            {selectedComplaint.timeline?.map((t, idx) => (
+                              <div key={idx} className="relative pl-6 text-xs">
+                                <div className="absolute left-0 top-1 w-4 h-4 rounded-full bg-slate-900 border-2 border-amber-500"></div>
+                                <div className="flex items-center justify-between text-slate-400 text-[11px]">
+                                  <span className="font-bold text-slate-200">{t.title}</span>
+                                  <span className="font-mono">{t.date}</span>
+                                </div>
+                                <p className="text-slate-400 mt-0.5">{t.note}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                      </div>
+                    ) : (
+                      <div className="bg-slate-950 border border-slate-800 rounded-2xl p-12 text-center text-slate-500 text-xs">
+                        Select a complaint from the left list to inspect details and execute bureaucratic updates.
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+
+              </div>
+            )}
+
+            {/* TAB 3: INSTITUTION DIRECTORY */}
+            {activeTab === 'directory' && (
+              <div className="p-6 space-y-6">
+                <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 text-center max-w-xl mx-auto space-y-3">
+                  <h3 className="text-sm font-bold text-slate-100">National AICTE Approved Institutions Directory</h3>
+                  <div className="relative">
+                    <i data-lucide="search" className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                    <input
+                      type="text"
+                      placeholder="Enter AICTE Permanent ID (e.g. 1-109982341) or Institute Name..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-100 focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {institutions
+                    .filter(inst => inst.name.toLowerCase().includes(searchQuery.toLowerCase()) || inst.id.toLowerCase().includes(searchQuery.toLowerCase()))
+                    .map(inst => (
+                      <div key={inst.id} className="bg-slate-950 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <span className="font-mono text-[10px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                              ID: {inst.id}
+                            </span>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                              inst.riskScore === 'High' ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'
+                            }`}>
+                              Risk: {inst.riskScore}
+                            </span>
+                          </div>
+
+                          <h4 className="text-sm font-bold text-slate-100 mt-3">{inst.name}</h4>
+                          <p className="text-xs text-slate-400 mt-1">{inst.address}</p>
+
+                          <div className="mt-4 space-y-1 text-xs text-slate-300 bg-slate-900 p-3 rounded-xl border border-slate-800">
+                            <div className="flex justify-between">
+                              <span className="text-slate-500 font-mono">Category:</span>
+                              <span>{inst.type}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-slate-500 font-mono">Approval:</span>
+                              <span className="text-emerald-400 font-semibold">{inst.approvalStatus}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => setSelectedInstitution(inst)}
+                          className="mt-4 w-full py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-xs text-amber-400 font-bold border border-slate-800 transition"
+                        >
+                          View Institution Profile & Complaints
+                        </button>
+                      </div>
+                    ))}
+                </div>
+
+                {/* MODAL */}
+                {selectedInstitution && (
+                  <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-slate-950 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 space-y-4">
+                      <div className="flex justify-between border-b border-slate-800 pb-3">
+                        <div>
+                          <span className="font-mono text-xs text-amber-400 font-bold">PERMANENT ID: {selectedInstitution.id}</span>
+                          <h3 className="text-base font-bold text-slate-100 mt-1">{selectedInstitution.name}</h3>
+                        </div>
+                        <button onClick={() => setSelectedInstitution(null)} className="text-slate-400 hover:text-slate-200">✕</button>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 text-xs bg-slate-900 p-3 rounded-xl">
+                        <div><span className="text-slate-500 block font-mono">Region</span><span className="font-bold">{selectedInstitution.region}</span></div>
+                        <div><span className="text-slate-500 block font-mono">Director</span><span className="font-bold">{selectedInstitution.director}</span></div>
+                      </div>
+
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-400 uppercase font-mono mb-2">Linked Complaints Dossiers</h4>
+                        <div className="space-y-2">
+                          {complaints.filter(c => c.instId === selectedInstitution.id).map(c => (
+                            <div key={c.id} className="p-3 rounded-xl bg-slate-900 border border-slate-800 text-xs flex justify-between items-center">
+                              <div>
+                                <span className="font-mono font-bold text-amber-400">{c.id}</span>
+                                <span className="text-slate-200 font-semibold ml-2">{c.category}</span>
+                              </div>
+                              <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">{c.status}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end pt-2">
+                        <button onClick={() => setSelectedInstitution(null)} className="px-4 py-2 rounded-xl bg-slate-800 text-xs text-slate-200 font-bold">Close</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            )}
+
+            {/* TAB 4: AI OVERLAP RADAR */}
+            {activeTab === 'ai-radar' && (
+              <div className="p-6 space-y-6">
+                <div className="bg-slate-950 border border-slate-800 rounded-2xl p-5 space-y-2">
+                  <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 text-xs font-bold border border-amber-500/20">
+                    <i data-lucide="sparkles" className="w-3.5 h-3.5"></i> AI Overlap Engine Active
+                  </div>
+                  <h3 className="text-base font-bold text-slate-100">Cross-Reference Duplicate Detection Radar</h3>
+                  <p className="text-xs text-slate-400">Scans complaint texts across different submitters and reference numbers to flag duplicate grievances.</p>
+                </div>
+
+                <div className="space-y-4">
+                  {aiOverlaps.map(item => {
+                    const primary = complaints.find(c => c.id === item.primaryCaseId);
+                    const matched = complaints.find(c => c.id === item.matchedCaseId);
+
+                    return (
+                      <div key={item.id} className="bg-slate-950 border border-slate-800 rounded-2xl p-5 space-y-4">
+                        <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                          <span className="font-mono text-xs font-bold text-amber-400">{item.id}</span>
+                          <span className="text-xs font-mono font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30">
+                            {item.similarityScore}% TEXT SIMILARITY MATCH
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                          <div className="bg-slate-900 p-3 rounded-xl border border-slate-800">
+                            <span className="text-blue-400 font-mono font-bold block">LEAD DOSSIER: {primary?.id}</span>
+                            <p className="font-bold text-slate-200 mt-1">{primary?.instName}</p>
+                            <p className="text-slate-400 mt-1">{primary?.description}</p>
+                          </div>
+                          <div className="bg-slate-900 p-3 rounded-xl border border-slate-800">
+                            <span className="text-purple-400 font-mono font-bold block">FLAGGED MATCH: {matched?.id}</span>
+                            <p className="font-bold text-slate-200 mt-1">{matched?.instName}</p>
+                            <p className="text-slate-400 mt-1">{matched?.description}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-between items-center pt-2">
+                          <span className="text-xs text-amber-400 font-mono">Rec: {item.recommendation}</span>
+                          <div className="flex gap-2">
+                            <button onClick={() => setSelectedOverlapPair(item)} className="px-3 py-1.5 rounded-lg bg-slate-800 text-xs font-semibold">Compare</button>
+                            <button onClick={() => handleMergeCases(item)} className="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 text-xs font-bold">Merge Cases</button>
+                            <button onClick={() => handleDismissOverlap(item.id)} className="px-3 py-1.5 rounded-lg bg-slate-900 text-xs text-slate-400">Dismiss</button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* SIDE BY SIDE MODAL */}
+                {selectedOverlapPair && (
+                  <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-slate-950 border border-slate-800 rounded-2xl max-w-3xl w-full p-6 space-y-4">
+                      <div className="flex justify-between border-b border-slate-800 pb-3">
+                        <h3 className="text-sm font-bold text-slate-100">AI Side-by-Side Comparison</h3>
+                        <button onClick={() => setSelectedOverlapPair(null)} className="text-slate-400">✕</button>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4 text-xs">
+                        <div className="bg-slate-900 p-3 rounded-xl">
+                          <span className="font-mono text-amber-400 font-bold">{selectedOverlapPair.primaryCaseId}</span>
+                          <p className="mt-2 text-slate-300">{complaints.find(c => c.id === selectedOverlapPair.primaryCaseId)?.description}</p>
+                        </div>
+                        <div className="bg-slate-900 p-3 rounded-xl">
+                          <span className="font-mono text-purple-400 font-bold">{selectedOverlapPair.matchedCaseId}</span>
+                          <p className="mt-2 text-slate-300">{complaints.find(c => c.id === selectedOverlapPair.matchedCaseId)?.description}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-2 pt-2">
+                        <button onClick={() => setSelectedOverlapPair(null)} className="px-4 py-2 rounded-xl bg-slate-900 text-xs font-bold">Close</button>
+                        <button onClick={() => handleMergeCases(selectedOverlapPair)} className="px-4 py-2 rounded-xl bg-amber-500 text-slate-950 text-xs font-bold">Approve Merge</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 5: ESCALATIONS & OVERDUE */}
+            {activeTab === 'escalations' && (
+              <div className="p-6 space-y-6">
+                <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4 text-xs space-y-1">
+                  <h3 className="font-bold text-red-400">Critical SLA Breaches</h3>
+                  <p className="text-slate-300">Complaints that have passed their mandated turnaround window without resolution.</p>
+                </div>
+
+                <div className="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden text-xs">
+                  <table className="w-full text-left">
+                    <thead className="bg-slate-900 text-slate-400 font-mono uppercase">
+                      <tr>
+                        <th className="p-3">Ref ID</th>
+                        <th className="p-3">Institution</th>
+                        <th className="p-3">Bureau</th>
+                        <th className="p-3">Officer</th>
+                        <th className="p-3">SLA Status</th>
+                        <th className="p-3 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800">
+                      {complaints.filter(c => c.slaSecondsLeft < 0 || c.isEscalated).map(c => (
+                        <tr key={c.id}>
+                          <td className="p-3 font-mono font-bold text-red-400">{c.id}</td>
+                          <td className="p-3 font-medium text-slate-200">{c.instName}</td>
+                          <td className="p-3">{c.bureau}</td>
+                          <td className="p-3">{c.assignedOfficer}</td>
+                          <td className="p-3">
+                            <span className="bg-red-500/20 text-red-400 font-mono font-bold px-2 py-0.5 rounded">
+                              {formatSLA(c.slaSecondsLeft).text}
+                            </span>
+                          </td>
+                          <td className="p-3 text-right">
+                            <button 
+                              onClick={() => { setSelectedComplaint(c); setActiveTab('complaints'); }}
+                              className="px-3 py-1 rounded bg-red-500 text-slate-950 text-xs font-bold"
+                            >
+                              Expedite
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+          </main>
+
+          {/* ACTION MODAL */}
+          {actionModalOpen && selectedComplaint && (
+            <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+              <form onSubmit={handleSaveAction} className="bg-slate-950 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-4 text-xs">
+                <div className="flex justify-between border-b border-slate-800 pb-3">
+                  <h3 className="font-bold text-slate-100">Update Case #{selectedComplaint.id}</h3>
+                  <button type="button" onClick={() => setActionModalOpen(false)} className="text-slate-400">✕</button>
+                </div>
+
+                {actionType === 'status' && (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-slate-400 mb-1 font-mono">Select New Status</label>
+                      <select 
+                        value={actionFormData.status}
+                        onChange={(e) => setActionFormData({ ...actionFormData, status: e.target.value })}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2 text-slate-100"
+                      >
+                        <option value="New">New</option>
+                        <option value="Assigned">Assigned</option>
+                        <option value="Under Investigation">Under Investigation</option>
+                        <option value="Pending Institution Response">Pending Inst. Response</option>
+                        <option value="Hearing Scheduled">Hearing Scheduled</option>
+                        <option value="Resolved">Resolved</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-400 mb-1 font-mono">Audit Remarks</label>
+                      <textarea
+                        rows={3}
+                        required
+                        placeholder="Enter reason for status change..."
+                        value={actionFormData.note}
+                        onChange={(e) => setActionFormData({ ...actionFormData, note: e.target.value })}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2 text-slate-100"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {actionType === 'reassign' && (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-slate-400 mb-1 font-mono">Transfer Bureau</label>
+                      <select 
+                        value={actionFormData.bureau}
+                        onChange={(e) => setActionFormData({ ...actionFormData, bureau: e.target.value })}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2 text-slate-100"
+                      >
+                        <option value="Grievance Redressal Cell">Grievance Redressal Cell</option>
+                        <option value="Approval Bureau">Approval Bureau</option>
+                        <option value="Vigilance Cell">Vigilance Cell</option>
+                        <option value="Finance Bureau">Finance Bureau</option>
+                        <option value="Academic Bureau">Academic Bureau</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-slate-400 mb-1 font-mono">Assigned Officer</label>
+                      <input
+                        type="text"
+                        required
+                        value={actionFormData.officer}
+                        onChange={(e) => setActionFormData({ ...actionFormData, officer: e.target.value })}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2 text-slate-100"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {actionType === 'hearing' && (
+                  <div>
+                    <label className="block text-slate-400 mb-1 font-mono">Hearing Date</label>
+                    <input
+                      type="date"
+                      required
+                      value={actionFormData.hearingDate}
+                      onChange={(e) => setActionFormData({ ...actionFormData, hearingDate: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2 text-slate-100"
+                    />
+                  </div>
+                )}
+
+                {actionType === 'clarify' && (
+                  <div>
+                    <label className="block text-slate-400 mb-1 font-mono">Query to Institution Principal</label>
+                    <textarea
+                      rows={3}
+                      required
+                      placeholder="Enter formal inquiry details..."
+                      value={actionFormData.note}
+                      onChange={(e) => setActionFormData({ ...actionFormData, note: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2 text-slate-100"
+                    />
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                  <button type="button" onClick={() => setActionModalOpen(false)} className="px-3 py-1.5 rounded-xl bg-slate-900 text-slate-400">Cancel</button>
+                  <button type="submit" className="px-3 py-1.5 rounded-xl bg-amber-500 text-slate-950 font-bold">Save Changes</button>
+                </div>
+              </form>
+            </div>
+          )}
+
+        </div>
+      );
+    }
+
+    // Initialize Lucide icons on render
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+
+    setTimeout(() => {
+      if (window.lucide) window.lucide.createIcons();
+    }, 500);
+  </script>
+</body>
+</html>
